@@ -399,242 +399,29 @@
           <div class="badge" aria-hidden="true"></div>
           <div>
             <h1>ssvarma</h1>
-            <p>Click a section, add a subsection, write the page.</p>
           </div>
         </div>
 
         <section class="track" aria-labelledby="cudaHeading">
           <div class="track-head">
             <h2 class="track-title" id="cudaHeading">CUDA 100 Days</h2>
-            <button class="new-page" type="button" data-new-page="cuda">+ New subsection</button>
           </div>
-          <div class="pages" id="cudaPages"></div>
         </section>
 
         <section class="track" aria-labelledby="inferenceHeading">
           <div class="track-head">
             <h2 class="track-title" id="inferenceHeading">Inference Engineering 100 Days</h2>
-            <button class="new-page" type="button" data-new-page="inference">+ New subsection</button>
           </div>
-          <div class="pages" id="inferencePages"></div>
         </section>
       </aside>
 
       <main>
-        <div class="workspace" id="workspace"></div>
+        <div class="workspace">
+          <section class="welcome">
+            <h2>Hello World!</h2>
+          </section>
+        </div>
       </main>
     </div>
-
-    <script>
-      const storageKey = "hundred-days-pages-v2";
-      const tracks = {
-        cuda: {
-          label: "CUDA 100 Days",
-          kicker: "GPU programming",
-          intro:
-            "Create one subsection for each day or topic. Open it, write like a blog, and keep building the archive.",
-          pages: [],
-        },
-        inference: {
-          label: "Inference Engineering 100 Days",
-          kicker: "Model serving",
-          intro:
-            "Use this side for notes on latency, batching, KV cache, quantization, schedulers, and deployment.",
-          pages: [],
-        },
-      };
-
-      let selected = null;
-      let saveTimer = null;
-      const workspace = document.querySelector("#workspace");
-
-      load();
-      render();
-
-      document.addEventListener("click", (event) => {
-        const newButton = event.target.closest("[data-new-page]");
-        if (newButton) {
-          createPage(newButton.dataset.newPage);
-          return;
-        }
-
-        const pageButton = event.target.closest("[data-page-id]");
-        if (pageButton) {
-          selected = {
-            trackId: pageButton.dataset.track,
-            pageId: pageButton.dataset.pageId,
-          };
-          render();
-          return;
-        }
-
-        const deleteButton = event.target.closest("[data-delete-page]");
-        if (deleteButton && selected) {
-          deletePage(selected.trackId, selected.pageId);
-        }
-      });
-
-      workspace.addEventListener("input", (event) => {
-        if (!selected) return;
-        const page = getSelectedPage();
-        if (!page) return;
-
-        if (event.target.matches("#pageTitle")) page.title = event.target.value;
-        if (event.target.matches("#pageDay")) page.day = event.target.value;
-        if (event.target.matches("#pageDate")) page.date = event.target.value;
-        if (event.target.matches("#pageBody")) page.body = event.target.innerText;
-
-        document.querySelector("#savedState").textContent = "Saving...";
-        window.clearTimeout(saveTimer);
-        saveTimer = window.setTimeout(() => {
-          page.updatedAt = new Date().toISOString();
-          save();
-          renderSidebar();
-          document.querySelector("#savedState").textContent = "Saved";
-        }, 250);
-      });
-
-      function createPage(trackId) {
-        const page = {
-          id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-          title: "",
-          day: String(nextDay(trackId)),
-          date: new Date().toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          }),
-          body: "",
-          updatedAt: new Date().toISOString(),
-        };
-        tracks[trackId].pages.push(page);
-        selected = { trackId, pageId: page.id };
-        save();
-        render();
-      }
-
-      function deletePage(trackId, pageId) {
-        tracks[trackId].pages = tracks[trackId].pages.filter((page) => page.id !== pageId);
-        selected = null;
-        save();
-        render();
-      }
-
-      function render() {
-        renderSidebar();
-        renderWorkspace();
-      }
-
-      function renderSidebar() {
-        for (const trackId of Object.keys(tracks)) {
-          const list = document.querySelector(`#${trackId}Pages`);
-          const pages = [...tracks[trackId].pages].sort((a, b) => Number(a.day || 0) - Number(b.day || 0));
-          list.innerHTML = pages.length
-            ? pages
-                .map(
-                  (page) => `
-                    <button
-                      class="page-link"
-                      type="button"
-                      data-track="${trackId}"
-                      data-page-id="${page.id}"
-                      aria-current="${selected?.pageId === page.id ? "page" : "false"}"
-                    >
-                      ${escapeHtml(page.title || "Untitled page")}
-                      <span>Day ${escapeHtml(page.day || "-")} / ${escapeHtml(page.date || "No date")}</span>
-                    </button>
-                  `,
-                )
-                .join("")
-            : `<div class="empty-track">No subsections yet.</div>`;
-        }
-      }
-
-      function renderWorkspace() {
-        const page = getSelectedPage();
-        if (!page) {
-          workspace.innerHTML = `
-            <section class="welcome">
-              <h2>Hello World!</h2>
-            </section>
-          `;
-          return;
-        }
-
-        const track = tracks[selected.trackId];
-        workspace.innerHTML = `
-          <section class="editor">
-            <div class="editor-bar">
-              <div>
-                <div class="topline"><span class="pixel"></span><span>${escapeHtml(track.kicker)}</span></div>
-                <div class="muted">${escapeHtml(track.label)}</div>
-              </div>
-              <div class="editor-actions">
-                <span class="saved" id="savedState">Saved</span>
-                <button class="action danger" type="button" data-delete-page>Delete page</button>
-              </div>
-            </div>
-            <article class="article-sheet">
-              <input
-                class="title-input"
-                id="pageTitle"
-                value="${escapeAttribute(page.title)}"
-                placeholder="Untitled page"
-                aria-label="Page title"
-              />
-              <div class="meta-line">
-                <input class="meta-input" id="pageDay" value="${escapeAttribute(page.day)}" aria-label="Day" />
-                <input class="meta-input" id="pageDate" value="${escapeAttribute(page.date)}" aria-label="Date" />
-              </div>
-              <div class="body-editor" id="pageBody" contenteditable="true" role="textbox" aria-label="Page body">${escapeHtml(page.body)}</div>
-            </article>
-          </section>
-        `;
-      }
-
-      function getSelectedPage() {
-        if (!selected) return null;
-        return tracks[selected.trackId]?.pages.find((page) => page.id === selected.pageId) || null;
-      }
-
-      function nextDay(trackId) {
-        const days = tracks[trackId].pages.map((page) => Number(page.day)).filter(Boolean);
-        return days.length ? Math.min(100, Math.max(...days) + 1) : 1;
-      }
-
-      function load() {
-        try {
-          const saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
-          for (const trackId of Object.keys(tracks)) {
-            tracks[trackId].pages = Array.isArray(saved[trackId]) ? saved[trackId] : [];
-          }
-        } catch {
-          for (const trackId of Object.keys(tracks)) tracks[trackId].pages = [];
-        }
-      }
-
-      function save() {
-        localStorage.setItem(
-          storageKey,
-          JSON.stringify({
-            cuda: tracks.cuda.pages,
-            inference: tracks.inference.pages,
-          }),
-        );
-      }
-
-      function escapeHtml(value) {
-        return String(value)
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;")
-          .replaceAll("'", "&#039;");
-      }
-
-      function escapeAttribute(value) {
-        return escapeHtml(value).replaceAll("`", "&#096;");
-      }
-    </script>
   </body>
 </html>
